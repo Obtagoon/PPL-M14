@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # M14-US1 Frontend — T11 + T12
 
 React + TypeScript + Vite frontend prototipe untuk pengaturan komponen gaji per karyawan.
@@ -89,3 +90,12 @@ Restart Vite setelah mengubah `.env`.
 
 ## Perbaikan JSX lanjutan
 Blok `<tbody>` di `src/App.tsx` ditulis ulang dengan conditional rendering yang eksplisit untuk kondisi loading, error, hasil pencarian kosong, dan daftar karyawan. Jika VS Code masih menampilkan isi lama, simpan/backup perubahan lokal lalu tutup dan buka kembali `src/App.tsx` setelah ekstraksi.
+=======
+# M14 - PPL
+
+Employee Payroll Management.
+
+## Development
+
+Coming soon.
+>>>>>>> origin/main

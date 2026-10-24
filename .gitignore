@@ -1,5 +1,26 @@
 node_modules/
+<<<<<<< HEAD
 dist/
 .env
 .env.*
 !.env.example
+=======
+vendor/
+.venv/
+venv/
+
+.env
+.env.*
+!.env.example
+
+.DS_Store
+Thumbs.db
+
+dist/
+build/
+target/
+*.log
+
+.idea/
+.vscode/
+>>>>>>> origin/main
