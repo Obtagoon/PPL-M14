@@ -6,17 +6,39 @@ export const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA !== "false";
 
 type SaveSalaryPayload = SalaryComponent & { effectiveFrom: string };
 
+let currentRole = "Admin HR";
+let currentUserName = "Rani K. (Admin HR)";
+
+export function getActiveRole(): string {
+  return currentRole;
+}
+
+export function setActiveRole(role: string): void {
+  currentRole = role;
+  if (role === "Admin HR") {
+    currentUserName = "Rani K. (Admin HR)";
+  } else {
+    currentUserName = "Andi Pratama (Pegawai)";
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
       Accept: "application/json",
+      "X-User-Role": currentRole,
+      "X-User-Name": currentUserName,
       ...(init?.body ? { "Content-Type": "application/json" } : {}),
       ...init?.headers,
     },
   });
   if (!response.ok) {
-    const message = await response.text().catch(() => "");
+    const errorJson = await response.json().catch(() => null);
+    const message = errorJson?.message || (await response.text().catch(() => ""));
+    if (response.status === 403) {
+      throw new Error(message || "Akses Ditolak (HTTP 403): Hanya Admin HR yang berwenang mengatur komponen gaji.");
+    }
     if (response.status === 404) throw new Error("Data komponen gaji tidak ditemukan.");
     throw new Error(message || `Permintaan API gagal (HTTP ${response.status}).`);
   }
@@ -35,10 +57,28 @@ function unwrapSalaryResponse(value: unknown): SalaryComponent | null {
       typeof salary.deduction !== "number") {
     throw new Error("Format respons API komponen gaji belum sesuai kontrak frontend.");
   }
+  const allowances = Array.isArray(salary.allowances)
+    ? salary.allowances.map((item: any) => ({
+        id: String(item.id ?? Math.random().toString(36).slice(2, 9)),
+        name: String(item.name ?? ""),
+        amount: Number(item.amount ?? 0),
+      }))
+    : undefined;
+
+  const deductions = Array.isArray(salary.deductions)
+    ? salary.deductions.map((item: any) => ({
+        id: String(item.id ?? Math.random().toString(36).slice(2, 9)),
+        name: String(item.name ?? ""),
+        amount: Number(item.amount ?? 0),
+      }))
+    : undefined;
+
   return {
     basicSalary: salary.basicSalary,
     fixedAllowance: salary.fixedAllowance,
     deduction: salary.deduction,
+    allowances,
+    deductions,
   };
 }
 

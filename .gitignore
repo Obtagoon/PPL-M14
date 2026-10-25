@@ -1,26 +1,27 @@
+# Dependencies
 node_modules/
-<<<<<<< HEAD
-dist/
-.env
-.env.*
-!.env.example
-=======
 vendor/
-.venv/
-venv/
 
+# Environment files
 .env
 .env.*
 !.env.example
 
-.DS_Store
-Thumbs.db
-
+# Build outputs
 dist/
 build/
 target/
-*.log
 
+# Database files
+backend/database/*.sqlite
+*.sqlite
+*.sqlite3
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db
+
+# IDEs
 .idea/
 .vscode/
->>>>>>> origin/main

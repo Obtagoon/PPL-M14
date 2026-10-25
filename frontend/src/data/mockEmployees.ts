@@ -13,6 +13,13 @@ export const mockEmployees: Employee[] = [
       basicSalary: 5_000_000,
       fixedAllowance: 750_000,
       deduction: 100_000,
+      allowances: [
+        { id: "al-1-1", name: "Tunjangan Transport", amount: 500_000 },
+        { id: "al-1-2", name: "Tunjangan Makan", amount: 250_000 },
+      ],
+      deductions: [
+        { id: "de-1-1", name: "BPJS Ketenagakerjaan", amount: 100_000 },
+      ],
     },
   },
   {
@@ -32,6 +39,10 @@ export const mockEmployees: Employee[] = [
       basicSalary: 4_800_000,
       fixedAllowance: 500_000,
       deduction: 0,
+      allowances: [
+        { id: "al-3-1", name: "Tunjangan Kehadiran", amount: 500_000 },
+      ],
+      deductions: [],
     },
   },
   {

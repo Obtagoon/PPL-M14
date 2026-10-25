@@ -1,0 +1,13 @@
+{
+  "name": "ppl-m14/backend",
+  "description": "Backend API Pengaturan Komponen Gaji per Karyawan (PHP 8.4)",
+  "type": "project",
+  "require": {
+    "php": ">=8.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "src/"
+    }
+  }
+}
