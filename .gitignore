@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+<<<<<<< Updated upstream
 vendor/
 
 # Environment files
@@ -34,3 +35,9 @@ venv/
 .idea/
 .vscode/
 
+=======
+dist/
+.env
+.env.*
+!.env.example
+>>>>>>> Stashed changes

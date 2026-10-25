@@ -6,6 +6,7 @@ import {
   Calculator, PlusCircle, Tag, Wallet, Receipt, Lock, Eye
 } from "lucide-react";
 import type { Employee, SalaryComponent, SalaryItem } from "./types/employee";
+import PayrollCalculationPage from "./PayrollCalculationPage";
 import {
   getEmployeesForSalary, getSalaryComponent, saveSalaryComponent,
   USE_MOCK_DATA, getActiveRole, setActiveRole,
@@ -156,6 +157,7 @@ export default function App() {
   const [loadError, setLoadError] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activePage, setActivePage] = useState<"salary-components" | "payroll">("salary-components");
   const [isEditingSalary, setIsEditingSalary] = useState(false);
   const [formValues, setFormValues] = useState<SalaryFormValues>(emptyForm);
   const [formErrors, setFormErrors] = useState<SalaryFormErrors>({});
@@ -571,13 +573,15 @@ export default function App() {
         <nav aria-label="Navigasi modul SDM">
           <a className="nav-item" href="#dashboard"><LayoutDashboard size={18} /> Ringkasan</a>
           <a className="nav-item" href="#karyawan"><Users size={18} /> Data karyawan</a>
-          <a className="nav-item active" href="#komponen-gaji" aria-current="page"><Banknote size={18} /> Komponen gaji</a>
+          <a className={`nav-item ${activePage === "salary-components" ? "active" : ""}`} href="#komponen-gaji" aria-current={activePage === "salary-components" ? "page" : undefined} onClick={(event) => { event.preventDefault(); setActivePage("salary-components"); setMobileMenuOpen(false); }}><Banknote size={18} /> Komponen gaji</a>
+          <a className={`nav-item ${activePage === "payroll" ? "active" : ""}`} href="#hitung-gaji" aria-current={activePage === "payroll" ? "page" : undefined} onClick={(event) => { event.preventDefault(); setActivePage("payroll"); setMobileMenuOpen(false); }}><Calculator size={18} /> Perhitungan gaji</a>
           <a className="nav-item" href="#laporan"><FileText size={18} /> Laporan</a>
         </nav>
         <div className="sidebar-bottom"><a className="nav-item" href="#pengaturan"><Settings size={18} /> Pengaturan</a><div className="sidebar-note"><span className="status-dot" /><span>Backend: PHP 8.4</span></div></div>
       </aside>
 
-      <main className="main-content" id="komponen-gaji">
+      <main className="main-content" id={activePage === "payroll" ? "hitung-gaji" : "komponen-gaji"}>
+        {activePage === "payroll" ? <PayrollCalculationPage employees={employees} /> : <>
         <div className="breadcrumb"><span>SDM</span><span className="crumb-separator">/</span><span>Penggajian</span><span className="crumb-separator">/</span><strong>Komponen gaji</strong></div>
         <div className="page-heading">
           <div>
@@ -1163,7 +1167,8 @@ export default function App() {
             </div>
           )}
         </section>}
-        <footer className="page-footer"><span>M14 · Pengaturan komponen gaji per karyawan (AC1 & AC4)</span><span>Backend: Python FastAPI · Frontend: Vite + React</span></footer>
+        <footer className="page-footer"><span>M14 · Pengaturan komponen gaji per karyawan (AC1 & AC4)</span><span>Frontend: Vite + React</span></footer>
+        </>}
       </main>
     </div>
   );
