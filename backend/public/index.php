@@ -108,3 +108,4 @@ try {
         'message' => 'Internal server error: ' . $e->getMessage(),
     ], 500);
 }
+
