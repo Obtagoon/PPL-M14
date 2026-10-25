@@ -3,14 +3,16 @@ import {
   Banknote, Bell, ChevronDown, CircleHelp, FileText, LayoutDashboard,
   Menu, Search, Settings, Users, X, ArrowUpRight, Info, CheckCircle2,
   Pencil, Plus, Save, ArrowLeft, History, Clock3, UserRound, Trash2,
-  Calculator, PlusCircle, Tag, Wallet, Receipt
+  Calculator, PlusCircle, Tag, Wallet, Receipt, Lock, Eye
 } from "lucide-react";
 import type { Employee, SalaryComponent, SalaryItem } from "./types/employee";
 import {
   getEmployeesForSalary, getSalaryComponent, saveSalaryComponent,
   USE_MOCK_DATA, getActiveRole, setActiveRole,
 } from "./services/salaryComponentService";
-import { getMockSalaryHistory, getSalaryHistory } from "./services/salaryHistoryService";
+import {
+  getSalaryHistory, getStoredMockHistory, saveStoredMockHistory
+} from "./services/salaryHistoryService";
 import type { SalaryHistoryRecord } from "./types/salaryHistory";
 
 type ItemFormValue = {
@@ -160,9 +162,18 @@ export default function App() {
   const [saveMessage, setSaveMessage] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [isSavingSalary, setIsSavingSalary] = useState(false);
-  const [historyRecords, setHistoryRecords] = useState<SalaryHistoryRecord[]>(() => getMockSalaryHistory());
+  const [historyRecords, setHistoryRecords] = useState<SalaryHistoryRecord[]>(() => getStoredMockHistory());
   const [currentRole, setCurrentRole] = useState<string>(() => getActiveRole());
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const isAdmin = currentRole === "Admin HR";
+
+  // Enforce read-only mode for non-admin roles
+  useEffect(() => {
+    if (!isAdmin && isEditingSalary) {
+      setIsEditingSalary(false);
+      setSaveMessage("Mode Pegawai: Hak akses terbatas hanya untuk melihat (Read-only).");
+    }
+  }, [isAdmin, isEditingSalary]);
 
   useEffect(() => {
     let active = true;
@@ -217,6 +228,10 @@ export default function App() {
   }
 
   function openSalaryForm(employee: Employee) {
+    if (!isAdmin) {
+      setSaveMessage("Akses Ditolak: Hanya pengguna dengan role 'Admin HR' yang berwenang mengatur komponen gaji.");
+      return;
+    }
     const salary = employee.salaryComponent;
     if (salary) {
       const allowances = salary.allowances && salary.allowances.length > 0
@@ -379,6 +394,10 @@ export default function App() {
   async function submitSalaryForm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedEmployee || isSavingSalary) return;
+    if (!isAdmin) {
+      setSaveMessage("Akses Ditolak: Hanya pengguna dengan role 'Admin HR' yang berwenang menyimpan komponen gaji.");
+      return;
+    }
     const errors = validateSalary(formValues);
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
@@ -431,6 +450,7 @@ export default function App() {
         employee.id === selectedEmployee.id ? { ...employee, salaryComponent: savedSalary } : employee
       ));
       if (USE_MOCK_DATA) {
+        saveStoredMockHistory(historyEntry);
         setHistoryRecords((old) => [historyEntry, ...old]);
       } else {
         const freshHistory = await getSalaryHistory(selectedEmployee.id);
@@ -684,6 +704,13 @@ export default function App() {
             </div>
             <button className="icon-button" onClick={() => { setSelectedId(null); cancelSalaryForm(); }} aria-label="Tutup detail"><X size={18} /></button>
           </div>
+
+          {!isAdmin && (
+            <div className="role-indicator-banner">
+              <Eye size={16} />
+              <span>Mode Akses: <strong>Pegawai (Hanya Lihat)</strong> — Anda hanya dapat melihat rincian komponen gaji. Pengaturan dan pengubahan komponen gaji hanya dapat dilakukan oleh <strong>Admin HR</strong>.</span>
+            </div>
+          )}
 
           <div className="history-toolbar">
             <div className="history-toolbar-copy">
@@ -1102,13 +1129,19 @@ export default function App() {
               </div>
 
               <div className="detail-action-row">
-                <div className="inline-notice success-notice">
-                  <CheckCircle2 size={18} />
-                  <span>{saveMessage || "Komponen gaji aktif dan terverifikasi untuk perhitungan penggajian."}</span>
+                <div className={`inline-notice ${isAdmin ? "success-notice" : "info-notice"}`}>
+                  {isAdmin ? <CheckCircle2 size={18} /> : <Eye size={18} />}
+                  <span>{saveMessage || (isAdmin ? "Komponen gaji aktif dan terverifikasi untuk perhitungan penggajian." : "Komponen gaji aktif. Hak akses Pegawai dibatasi hanya untuk melihat (Read-only).")}</span>
                 </div>
-                <button className="button-primary" onClick={() => openSalaryForm(selectedEmployee)}>
-                  <Pencil size={16} /> Edit komponen
-                </button>
+                {isAdmin ? (
+                  <button className="button-primary" onClick={() => openSalaryForm(selectedEmployee)}>
+                    <Pencil size={16} /> Edit komponen
+                  </button>
+                ) : (
+                  <div className="role-readonly-badge" title="Pengeditan komponen gaji dinonaktifkan untuk role Pegawai">
+                    <Lock size={15} /> Akses Edit Terkunci (Khusus Admin)
+                  </div>
+                )}
               </div>
             </>
           ) : (
@@ -1118,13 +1151,19 @@ export default function App() {
                 <h3>Komponen gaji belum diatur</h3>
                 <p>Karyawan ini belum memiliki komponen gaji. Atur gaji pokok serta tunjangan dan potongan agar dapat dipakai sebagai dasar perhitungan gaji.</p>
               </div>
-              <button className="button-primary empty-detail-action" onClick={() => openSalaryForm(selectedEmployee)}>
-                <Plus size={16} /> Atur komponen
-              </button>
+              {isAdmin ? (
+                <button className="button-primary empty-detail-action" onClick={() => openSalaryForm(selectedEmployee)}>
+                  <Plus size={16} /> Atur komponen
+                </button>
+              ) : (
+                <div className="role-readonly-badge empty-detail-action" title="Pengaturan komponen gaji hanya dapat dilakukan oleh Admin HR">
+                  <Lock size={15} /> Khusus Admin HR
+                </div>
+              )}
             </div>
           )}
         </section>}
-        <footer className="page-footer"><span>M14 · Pengaturan komponen gaji per karyawan (AC1 & AC4)</span><span>Backend: PHP 8.4 · Frontend: Vite + React</span></footer>
+        <footer className="page-footer"><span>M14 · Pengaturan komponen gaji per karyawan (AC1 & AC4)</span><span>Backend: Python FastAPI · Frontend: Vite + React</span></footer>
       </main>
     </div>
   );

@@ -52,10 +52,35 @@ export function getMockSalaryHistory(): SalaryHistoryRecord[] {
   ];
 }
 
-// Mengambil riwayat perubahan komponen gaji dari Backend PHP 8.4
+const STORAGE_KEY_MOCK_HISTORY = "ppl_m14_mock_history";
+
+export function getStoredMockHistory(): SalaryHistoryRecord[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_MOCK_HISTORY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {
+    console.error("Gagal membaca mock history dari localStorage", e);
+  }
+  return getMockSalaryHistory();
+}
+
+export function saveStoredMockHistory(record: SalaryHistoryRecord): void {
+  try {
+    const current = getStoredMockHistory();
+    const updated = [record, ...current];
+    localStorage.setItem(STORAGE_KEY_MOCK_HISTORY, JSON.stringify(updated));
+  } catch (e) {
+    console.error("Gagal menyimpan mock history ke localStorage", e);
+  }
+}
+
+// Mengambil riwayat perubahan komponen gaji
 export async function getSalaryHistory(employeeId: number): Promise<SalaryHistoryRecord[]> {
   if (USE_MOCK_DATA) {
-    return Promise.resolve(getMockSalaryHistory().filter((r) => r.employeeId === employeeId));
+    return Promise.resolve(getStoredMockHistory().filter((r) => r.employeeId === employeeId));
   }
 
   try {

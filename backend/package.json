@@ -2,8 +2,8 @@
   "name": "ppl-m14-backend",
   "private": true,
   "scripts": {
-    "backend": "php -S localhost:8000 -t public public/index.php",
-    "start": "php -S localhost:8000 -t public public/index.php",
-    "dev": "php -S localhost:8000 -t public public/index.php"
+    "backend": "python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload",
+    "start": "python -m uvicorn main:app --host 127.0.0.1 --port 8000",
+    "dev": "python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload"
   }
 }

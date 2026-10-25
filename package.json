@@ -2,11 +2,11 @@
   "name": "ppl-m14",
   "private": true,
   "version": "1.0.0",
-  "description": "Pengaturan Komponen Gaji per Karyawan (Frontend React + Backend PHP 8.4)",
+  "description": "Pengaturan Komponen Gaji per Karyawan (Frontend React + Backend Python FastAPI)",
   "scripts": {
     "dev": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend install && npm --prefix frontend run build",
     "preview": "npm --prefix frontend run preview",
-    "backend": "php -S localhost:8000 -t backend/public backend/public/index.php"
+    "backend": "python -m uvicorn main:app --app-dir backend --host 127.0.0.1 --port 8000 --reload"
   }
 }
