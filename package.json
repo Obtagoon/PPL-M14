@@ -5,7 +5,7 @@
   "description": "Pengaturan Komponen Gaji per Karyawan (Frontend React + Backend PHP 8.4)",
   "scripts": {
     "dev": "npm --prefix frontend run dev",
-    "build": "npm --prefix frontend run build",
+    "build": "npm --prefix frontend install && npm --prefix frontend run build",
     "preview": "npm --prefix frontend run preview",
     "backend": "php -S localhost:8000 -t backend/public backend/public/index.php"
   }
