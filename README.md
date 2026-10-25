@@ -2,7 +2,7 @@
 
 Aplikasi pengelolaan komponen gaji per karyawan (Employee Payroll Management) yang dikembangkan dengan:
 - **Frontend**: React 19 + TypeScript + Vite (`/frontend`)
-- **Backend**: PHP 8.4 REST API + SQLite PDO (`/backend`)
+- **Backend**: Python 3.10+ FastAPI + SQLite (`/backend`)
 
 ---
 
@@ -21,15 +21,13 @@ PPL-M14/
 │   ├── .env              # Konfigurasi environment frontend
 │   └── package.json      # Dependensi frontend
 │
-├── backend/              # REST API PHP 8.4
-│   ├── public/
-│   │   └── index.php     # Front controller, Router, CORS
-│   ├── src/
-│   │   ├── Controllers/  # EmployeeController & SalaryComponentController
-│   │   ├── Models/       # SalaryComponent & SalaryItem (PHP 8.4)
-│   │   └── Database.php  # SQLite PDO Database auto-init & seed
+├── backend/              # REST API Python FastAPI
+│   ├── main.py           # Entrypoint FastAPI, CORS, Health Check & Exception Handlers
+│   ├── database.py       # SQLite connection, schema auto-init & seeder
+│   ├── schemas.py        # Pydantic schema validation & response contracts
+│   ├── routers/          # Route controller employees & salary components
 │   ├── database/         # Penyimpanan database SQLite
-│   └── composer.json     # Konfigurasi Composer PHP 8.4
+│   └── requirements.txt  # Dependensi Python (fastapi, uvicorn, pydantic)
 │
 ├── package.json          # Root scripts runner untuk dev & build
 └── README.md
@@ -54,7 +52,7 @@ PPL-M14/
 
 ## Cara Menjalankan
 
-### 1. Menjalankan Backend (PHP 8.4)
+### 1. Menjalankan Backend (Python FastAPI)
 Buka terminal dan jalankan:
 ```bash
 # Opsi A: Dari root folder
@@ -62,9 +60,9 @@ npm run backend
 
 # Opsi B: Dari folder backend langsung
 cd backend
-php -S localhost:8000 -t public
+python -m uvicorn main:app --reload --port 8000
 ```
-Backend akan aktif di `http://localhost:8000`.
+Backend akan aktif di `http://127.0.0.1:8000` dengan Swagger UI interaktif di `http://127.0.0.1:8000/docs`.
 
 ### 2. Menjalankan Frontend (Vite)
 Buka terminal kedua dan jalankan:
@@ -82,5 +80,5 @@ Akses frontend di browser pada alamat: **http://localhost:5173**
 
 ## Mode Mock vs Backend API
 Di dalam file `frontend/.env`:
-- `VITE_USE_MOCK_DATA=false`: Terhubung langsung ke Backend PHP 8.4 di `http://localhost:8000`.
+- `VITE_USE_MOCK_DATA=false`: Terhubung langsung ke Backend Python FastAPI di `http://127.0.0.1:8000`.
 - `VITE_USE_MOCK_DATA=true`: Berjalan mandiri dengan data simulasi (tanpa memerlukan server backend).

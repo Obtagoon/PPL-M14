@@ -82,8 +82,31 @@ function unwrapSalaryResponse(value: unknown): SalaryComponent | null {
   };
 }
 
+const STORAGE_KEY_MOCK_EMPLOYEES = "ppl_m14_mock_employees";
+
+function getStoredMockEmployees(): Employee[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_MOCK_EMPLOYEES);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {
+    console.error("Gagal membaca mock employees dari localStorage", e);
+  }
+  return mockEmployees;
+}
+
+function saveStoredMockEmployees(list: Employee[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEY_MOCK_EMPLOYEES, JSON.stringify(list));
+  } catch (e) {
+    console.error("Gagal menyimpan mock employees ke localStorage", e);
+  }
+}
+
 export async function getEmployeesForSalary(): Promise<Employee[]> {
-  if (USE_MOCK_DATA) return mockEmployees;
+  if (USE_MOCK_DATA) return getStoredMockEmployees();
   const response = await request<unknown>("/api/employees");
   const list = Array.isArray(response) ? response : (response as { data?: unknown })?.data;
   if (!Array.isArray(list)) throw new Error("Format respons daftar karyawan belum sesuai kontrak frontend.");
@@ -92,7 +115,7 @@ export async function getEmployeesForSalary(): Promise<Employee[]> {
 
 export async function getSalaryComponent(employeeId: number): Promise<SalaryComponent | null> {
   if (USE_MOCK_DATA) {
-    return mockEmployees.find((employee) => employee.id === employeeId)?.salaryComponent ?? null;
+    return getStoredMockEmployees().find((employee) => employee.id === employeeId)?.salaryComponent ?? null;
   }
   try {
     return unwrapSalaryResponse(await request<unknown>(`/api/employees/${employeeId}/salary-components`));
@@ -107,8 +130,16 @@ export async function saveSalaryComponent(
   payload: SaveSalaryPayload,
   isUpdate: boolean,
 ): Promise<SalaryComponent> {
+  if (currentRole !== "Admin HR") {
+    throw new Error("Akses Ditolak (HTTP 403): Hanya pengguna dengan role 'Admin HR' yang berwenang mengatur komponen gaji.");
+  }
   if (USE_MOCK_DATA) {
     const { effectiveFrom: _effectiveFrom, ...salary } = payload;
+    const currentList = getStoredMockEmployees();
+    const updatedList = currentList.map((emp) =>
+      emp.id === employeeId ? { ...emp, salaryComponent: salary } : emp
+    );
+    saveStoredMockEmployees(updatedList);
     return salary;
   }
   const response = await request<unknown>(`/api/employees/${employeeId}/salary-components`, {
@@ -119,3 +150,4 @@ export async function saveSalaryComponent(
   if (!saved) throw new Error("Respons API tidak berisi komponen gaji yang valid.");
   return saved;
 }
+
