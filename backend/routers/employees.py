@@ -59,7 +59,7 @@ def fetch_salary_component_detail(conn, employee_id: int) -> Optional[dict]:
         SELECT id, name, amount, type
         FROM salary_items
         WHERE salary_component_id = ?
-        ORDER BY rowid ASC
+        ORDER BY id ASC
     """, (comp_id,))
     items = cursor.fetchall()
 
@@ -200,7 +200,8 @@ async def save_salary_component(
                 INSERT INTO salary_components (employee_id, basic_salary, fixed_allowance, deduction, effective_from, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (employee_id, payload.basicSalary, total_allowance, total_deduction, effective_from, now_iso))
-            comp_id = cursor.lastrowid
+            cursor.execute("SELECT id FROM salary_components WHERE employee_id = ?", (employee_id,))
+            comp_id = cursor.fetchone()["id"]
 
         for al in allowances:
             cursor.execute("""
@@ -257,7 +258,7 @@ def get_salary_history(employee_id: int):
             SELECT id, employee_id, old_value, new_value, changed_by, changed_at
             FROM salary_history
             WHERE employee_id = ?
-            ORDER BY rowid DESC
+            ORDER BY changed_at DESC
         """, (employee_id,))
         rows = cursor.fetchall()
 

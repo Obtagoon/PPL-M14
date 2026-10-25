@@ -5,8 +5,22 @@ Backend REST API untuk pengelolaan komponen gaji per karyawan sesuai spesifikasi
 - **AC4**: Penambahan beberapa tunjangan tetap atau potongan (mis. transport, makan, BPJS) yang tersimpan terpisah dengan nama dan nominalnya.
 
 ## Persyaratan
-- Python >= 3.10 (termasuk modul bawaan `sqlite3`)
-- Dependensi: `fastapi`, `uvicorn`, `pydantic`
+- Python >= 3.10
+- Dependensi: `fastapi`, `uvicorn`, `pydantic`, `psycopg2-binary`, `python-dotenv`
+
+## Konfigurasi Database (Neon Console & SQLite)
+Backend mendukung **dual-mode database**:
+1. **Neon Console (PostgreSQL)**: Digunakan bersama tim (misal teman yang memakai PHP) agar terhubung ke basis data cloud yang sama.
+2. **SQLite (Lokal Fallback)**: Aktif secara otomatis jika belum ada connection string Neon, sehingga aplikasi tetap langsung bisa berjalan tanpa error.
+
+### Cara Menghubungkan ke Neon Console:
+1. Buka file [backend/.env](file:///c:/Users/KEVIN/PPL-M14/backend/.env) (atau salin dari [backend/.env.example](file:///c:/Users/KEVIN/PPL-M14/backend/.env.example)).
+2. Masukkan connection string dari teman Anda ke variabel `DATABASE_URL`:
+   ```env
+   DATABASE_URL=postgresql://neondb_owner:password@ep-xyz.region.neon.tech/neondb?sslmode=require
+   ```
+3. Restart server backend (`npm run backend`). Sistem akan otomatis mendeteksi Neon Console, membuat tabel jika belum ada, dan terhubung langsung.
+4. Jika teman Anda membutuhkan skrip SQL DDL untuk Neon Console, telah disediakan di [backend/schema_neon.sql](file:///c:/Users/KEVIN/PPL-M14/backend/schema_neon.sql).
 
 ## Instalasi Dependensi
 ```bash
