@@ -128,14 +128,9 @@ def init_sqlite_db():
     conn = get_db_connection()
     with conn:
         conn.executescript("""
-            CREATE TABLE IF NOT EXISTS employees (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                nik TEXT NOT NULL UNIQUE,
-                department TEXT NOT NULL,
-                position TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            );
+            -- CATATAN: Tabel 'employees' TIDAK ada di database M14.
+            -- Data karyawan diambil dari API M12 (M12_API_BASE_URL).
+            -- employee_id di tabel berikut adalah referensi integer ke ID karyawan M12.
 
             CREATE TABLE IF NOT EXISTS salary_components (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -144,8 +139,7 @@ def init_sqlite_db():
                 fixed_allowance INTEGER NOT NULL DEFAULT 0,
                 deduction INTEGER NOT NULL DEFAULT 0,
                 effective_from TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+                updated_at TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS salary_items (
@@ -163,8 +157,7 @@ def init_sqlite_db():
                 old_value TEXT,
                 new_value TEXT NOT NULL,
                 changed_by TEXT NOT NULL,
-                changed_at TEXT NOT NULL,
-                FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+                changed_at TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS users (
@@ -174,10 +167,44 @@ def init_sqlite_db():
                 role TEXT NOT NULL DEFAULT 'Employee',
                 created_at TEXT NOT NULL
             );
+
+            -- US2: Tabel hasil perhitungan gaji berdasarkan kehadiran (U2-T5)
+            -- Data karyawan diambil dari API M12, rekap kehadiran dari API M13.
+            -- Tabel ini sepenuhnya milik database M14.
+            CREATE TABLE IF NOT EXISTS salary_calculations (
+                id TEXT PRIMARY KEY,
+                employee_id INTEGER NOT NULL,
+                employee_name TEXT NOT NULL,
+                periode_bulan INTEGER NOT NULL,
+                periode_tahun INTEGER NOT NULL,
+                gaji_pokok INTEGER NOT NULL,
+                total_tunjangan INTEGER NOT NULL DEFAULT 0,
+                potongan_tetap INTEGER NOT NULL DEFAULT 0,
+                potongan_alpa INTEGER NOT NULL DEFAULT 0,
+                potongan_keterlambatan INTEGER NOT NULL DEFAULT 0,
+                total_potongan INTEGER NOT NULL DEFAULT 0,
+                gaji_bersih INTEGER NOT NULL,
+                is_negatif INTEGER NOT NULL DEFAULT 0,
+                jumlah_alpa INTEGER NOT NULL DEFAULT 0,
+                jumlah_keterlambatan INTEGER NOT NULL DEFAULT 0,
+                dihitung_oleh TEXT NOT NULL,
+                dihitung_pada TEXT NOT NULL
+            );
+
+            -- US2: Tabel status penguncian periode penggajian (U2-T10 / AC8)
+            CREATE TABLE IF NOT EXISTS payroll_periods (
+                id TEXT PRIMARY KEY,
+                periode_bulan INTEGER NOT NULL,
+                periode_tahun INTEGER NOT NULL,
+                is_locked INTEGER NOT NULL DEFAULT 0,
+                locked_at TEXT,
+                locked_by TEXT,
+                created_at TEXT NOT NULL
+            );
         """)
 
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM employees")
+        cursor.execute("SELECT COUNT(*) FROM salary_components")
         count = cursor.fetchone()[0]
         if count == 0:
             seed_data(conn, db_type="sqlite")
@@ -191,14 +218,9 @@ def init_postgres_db():
     try:
         with conn:
             conn.executescript("""
-                CREATE TABLE IF NOT EXISTS employees (
-                    id SERIAL PRIMARY KEY,
-                    name VARCHAR(255) NOT NULL,
-                    nik VARCHAR(50) NOT NULL UNIQUE,
-                    department VARCHAR(100) NOT NULL,
-                    position VARCHAR(100) NOT NULL,
-                    created_at VARCHAR(100) NOT NULL
-                );
+                -- CATATAN: Tabel 'employees' TIDAK ada di database M14.
+                -- Data karyawan diambil dari API M12 (M12_API_BASE_URL).
+                -- employee_id di tabel berikut adalah referensi integer ke ID karyawan M12.
 
                 CREATE TABLE IF NOT EXISTS salary_components (
                     id SERIAL PRIMARY KEY,
@@ -207,8 +229,7 @@ def init_postgres_db():
                     fixed_allowance BIGINT NOT NULL DEFAULT 0,
                     deduction BIGINT NOT NULL DEFAULT 0,
                     effective_from VARCHAR(50) NOT NULL,
-                    updated_at VARCHAR(100) NOT NULL,
-                    FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+                    updated_at VARCHAR(100) NOT NULL
                 );
 
                 CREATE TABLE IF NOT EXISTS salary_items (
@@ -226,8 +247,7 @@ def init_postgres_db():
                     old_value TEXT,
                     new_value TEXT NOT NULL,
                     changed_by VARCHAR(255) NOT NULL,
-                    changed_at VARCHAR(100) NOT NULL,
-                    FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+                    changed_at VARCHAR(100) NOT NULL
                 );
 
                 CREATE TABLE IF NOT EXISTS users (
@@ -237,10 +257,44 @@ def init_postgres_db():
                     role VARCHAR(50) NOT NULL DEFAULT 'Employee',
                     created_at VARCHAR(100) NOT NULL
                 );
+
+                -- US2: Tabel hasil perhitungan gaji berdasarkan kehadiran (U2-T5)
+                -- Data karyawan diambil dari API M12, rekap kehadiran dari API M13.
+                -- Tabel ini sepenuhnya milik database M14.
+                CREATE TABLE IF NOT EXISTS salary_calculations (
+                    id VARCHAR(100) PRIMARY KEY,
+                    employee_id INTEGER NOT NULL,
+                    employee_name VARCHAR(255) NOT NULL,
+                    periode_bulan INTEGER NOT NULL,
+                    periode_tahun INTEGER NOT NULL,
+                    gaji_pokok BIGINT NOT NULL,
+                    total_tunjangan BIGINT NOT NULL DEFAULT 0,
+                    potongan_tetap BIGINT NOT NULL DEFAULT 0,
+                    potongan_alpa BIGINT NOT NULL DEFAULT 0,
+                    potongan_keterlambatan BIGINT NOT NULL DEFAULT 0,
+                    total_potongan BIGINT NOT NULL DEFAULT 0,
+                    gaji_bersih BIGINT NOT NULL,
+                    is_negatif BOOLEAN NOT NULL DEFAULT FALSE,
+                    jumlah_alpa INTEGER NOT NULL DEFAULT 0,
+                    jumlah_keterlambatan INTEGER NOT NULL DEFAULT 0,
+                    dihitung_oleh VARCHAR(255) NOT NULL,
+                    dihitung_pada VARCHAR(100) NOT NULL
+                );
+
+                -- US2: Tabel status penguncian periode penggajian (U2-T10 / AC8)
+                CREATE TABLE IF NOT EXISTS payroll_periods (
+                    id VARCHAR(50) PRIMARY KEY,
+                    periode_bulan INTEGER NOT NULL,
+                    periode_tahun INTEGER NOT NULL,
+                    is_locked BOOLEAN NOT NULL DEFAULT FALSE,
+                    locked_at VARCHAR(100),
+                    locked_by VARCHAR(255),
+                    created_at VARCHAR(100) NOT NULL
+                );
             """)
 
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM employees")
+            cursor.execute("SELECT COUNT(*) FROM salary_components")
             count = cursor.fetchone()[0]
             if count == 0:
                 seed_data(conn, db_type="postgres")
@@ -251,44 +305,40 @@ def init_postgres_db():
 def seed_data(conn, db_type: str = "sqlite"):
     now = datetime.now().isoformat()
 
-    employees = [
-        (1, "Andi Pratama", "2026001", "Operasional", "Staf Operasional", now),
-        (2, "Siti Rahma", "2026002", "Keuangan", "Staf Keuangan", now),
-        (3, "Budi Santoso", "2026003", "Sumber Daya Manusia", "Staf HR", now),
-        (4, "Dewi Lestari", "2026004", "Operasional", "Supervisor", now),
-        (5, "Rizky Firmansyah", "2026005", "Teknologi Informasi", "Staf IT", now),
-    ]
-
+    # ----------------------------------------------------------------
+    # CATATAN: Tidak ada seed data karyawan di sini.
+    # Data karyawan diambil dari API M12 (M12_API_BASE_URL).
+    # employee_id di bawah (1, 3) harus sesuai dengan ID karyawan di M12.
+    # ----------------------------------------------------------------
     cursor = conn.cursor()
-    cursor.executemany(
-        "INSERT INTO employees (id, name, nik, department, position, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-        employees
-    )
 
-    # Andi Pratama (id: 1)
-    cursor.execute("""
+    # Gunakan placeholder yang sesuai: %s untuk PostgreSQL, ? untuk SQLite
+    ph = "%s" if db_type == "postgres" else "?"
+
+    # Komponen Gaji karyawan ID 1 (sesuaikan dengan ID karyawan di M12)
+    cursor.execute(f"""
         INSERT INTO salary_components (id, employee_id, basic_salary, fixed_allowance, deduction, effective_from, updated_at)
-        VALUES (1, 1, 5000000, 750000, 100000, "2026-11-01", ?)
+        VALUES (1, 1, 5000000, 750000, 100000, '2026-11-01', {ph})
     """, (now,))
 
-    cursor.executemany("""
+    cursor.executemany(f"""
         INSERT INTO salary_items (id, salary_component_id, type, name, amount)
-        VALUES (?, ?, ?, ?, ?)
+        VALUES ({ph}, {ph}, {ph}, {ph}, {ph})
     """, [
         ("al-1-1", 1, "allowance", "Tunjangan Transport", 500000),
         ("al-1-2", 1, "allowance", "Tunjangan Makan", 250000),
         ("de-1-1", 1, "deduction", "BPJS Ketenagakerjaan", 100000),
     ])
 
-    # Budi Santoso (id: 3)
-    cursor.execute("""
+    # Komponen Gaji karyawan ID 3 (sesuaikan dengan ID karyawan di M12)
+    cursor.execute(f"""
         INSERT INTO salary_components (id, employee_id, basic_salary, fixed_allowance, deduction, effective_from, updated_at)
-        VALUES (2, 3, 4800000, 500000, 0, "2026-11-01", ?)
+        VALUES (2, 3, 4800000, 500000, 0, '2026-11-01', {ph})
     """, (now,))
 
-    cursor.executemany("""
+    cursor.executemany(f"""
         INSERT INTO salary_items (id, salary_component_id, type, name, amount)
-        VALUES (?, ?, ?, ?, ?)
+        VALUES ({ph}, {ph}, {ph}, {ph}, {ph})
     """, [
         ("al-3-1", 2, "allowance", "Tunjangan Kehadiran", 500000),
     ])
@@ -312,24 +362,23 @@ def seed_data(conn, db_type: str = "sqlite"):
         "deductions": [{"id": "h1-5", "name": "BPJS Ketenagakerjaan", "amount": 100000}],
     })
 
-    cursor.execute("""
+    cursor.execute(f"""
         INSERT INTO salary_history (id, employee_id, old_value, new_value, changed_by, changed_at)
-        VALUES ("hist-1", 1, ?, ?, "Rani K. (Admin HR)", "2026-10-20T09:15:00+07:00")
+        VALUES ('hist-1', 1, {ph}, {ph}, 'Rani K. (Admin HR)', '2026-10-20T09:15:00+07:00')
     """, (hist_old1, hist_new1))
 
-    # Seed Users
+    # Seed Users (untuk autentikasi role M14)
     users = [
         (1, "Rani K.", "rani.hr@araya.com", "Admin HR", now),
         (2, "Andi Pratama", "andi@araya.com", "Employee", now),
     ]
     cursor.executemany(
-        "INSERT INTO users (id, name, email, role, created_at) VALUES (?, ?, ?, ?, ?)",
+        f"INSERT INTO users (id, name, email, role, created_at) VALUES ({ph}, {ph}, {ph}, {ph}, {ph})",
         users
     )
 
     # Khusus PostgreSQL: sinkronisasi sequence auto-increment
     if db_type == "postgres":
-        cursor.execute("SELECT setval('employees_id_seq', (SELECT MAX(id) FROM employees));")
         cursor.execute("SELECT setval('salary_components_id_seq', (SELECT MAX(id) FROM salary_components));")
         cursor.execute("SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));")
 

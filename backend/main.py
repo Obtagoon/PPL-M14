@@ -7,6 +7,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from database import init_db
 from routers.employees import router as employees_router
+from routers.salary_calculation import router as salary_calculation_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -70,7 +71,8 @@ def health_check():
     }
 
 # Include routers
-app.include_router(employees_router)
+app.include_router(employees_router)          # US1: Komponen Gaji
+app.include_router(salary_calculation_router) # US2: Perhitungan Gaji Berdasarkan Kehadiran
 
 if __name__ == "__main__":
     import uvicorn

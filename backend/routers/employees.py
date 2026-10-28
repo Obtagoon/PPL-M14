@@ -1,7 +1,26 @@
+"""
+Router US1 - Employees & Salary Components
+==========================================
+Sumber data:
+  - Data Karyawan   : GET dari API M12 (M12_API_BASE_URL di .env)
+                      Jika URL kosong, gunakan mock data lokal.
+  - Komponen Gaji   : Database M14 sendiri (tabel salary_components, salary_items)
+  - Riwayat Perubahan: Database M14 sendiri (tabel salary_history)
+
+Endpoint:
+  GET  /api/employees                         - Daftar karyawan (dari M12) + komponen gaji (dari DB M14)
+  GET  /api/employees/{id}/salary-components  - Komponen gaji satu karyawan
+  POST /api/employees/{id}/salary-components  - Simpan/update komponen gaji (Admin HR only)
+  GET  /api/employees/{id}/salary-history     - Riwayat perubahan komponen gaji
+"""
+
+import os
 import secrets
 import json
 from datetime import datetime
 from typing import List, Optional
+
+import httpx
 from fastapi import APIRouter, HTTPException, Header, Request, status
 from fastapi.responses import JSONResponse
 
@@ -16,6 +35,118 @@ from schemas import (
 )
 
 router = APIRouter(prefix="/api/employees", tags=["Employees"])
+
+# ==============================================================================
+# KONFIGURASI URL API M12 (Data Karyawan)
+# ==============================================================================
+
+M12_API_BASE = os.getenv("M12_API_BASE_URL", "")
+M12_API_TOKEN = os.getenv("M12_API_TOKEN", "")
+M12_LOGIN_EMAIL = os.getenv("M12_LOGIN_EMAIL", "")
+M12_LOGIN_PASSWORD = os.getenv("M12_LOGIN_PASSWORD", "")
+
+# Cache token M12 agar tidak login ulang setiap request
+_m12_token_cache: dict = {"token": M12_API_TOKEN or None}
+
+
+async def get_m12_token() -> str | None:
+    """Ambil Bearer token M12 (dari .env atau auto-login)."""
+    if _m12_token_cache["token"]:
+        return _m12_token_cache["token"]
+
+    env_token = os.getenv("M12_API_TOKEN")
+    if env_token:
+        _m12_token_cache["token"] = env_token
+        return env_token
+
+    if not M12_API_BASE or not M12_LOGIN_EMAIL:
+        return None
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                f"{M12_API_BASE}/api/login",
+                json={"email": M12_LOGIN_EMAIL, "password": M12_LOGIN_PASSWORD}
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            token = data.get("token") or data.get("data", {}).get("token")
+            _m12_token_cache["token"] = token
+            return token
+    except Exception:
+        return None
+
+# Mock data karyawan — dipakai saat M12_API_BASE_URL belum diisi di .env
+MOCK_EMPLOYEES_M12 = [
+    {"id": 1, "name": "Andi Pratama",     "nik": "2026001", "department": "Operasional",         "position": "Staf Operasional"},
+    {"id": 2, "name": "Siti Rahma",       "nik": "2026002", "department": "Keuangan",            "position": "Staf Keuangan"},
+    {"id": 3, "name": "Budi Santoso",     "nik": "2026003", "department": "Sumber Daya Manusia", "position": "Staf HR"},
+    {"id": 4, "name": "Dewi Lestari",     "nik": "2026004", "department": "Operasional",         "position": "Supervisor"},
+    {"id": 5, "name": "Rizky Firmansyah", "nik": "2026005", "department": "Teknologi Informasi", "position": "Staf IT"},
+]
+
+
+# ==============================================================================
+# HELPER: AMBIL DATA KARYAWAN DARI M12
+# ==============================================================================
+
+async def fetch_all_employees_from_m12() -> list:
+    """Ambil semua karyawan dari API M12 dengan auto-login. Fallback ke mock."""
+    if M12_API_BASE:
+        token = await get_m12_token()
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(f"{M12_API_BASE}/api/employees", headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
+                employees = data if isinstance(data, list) else data.get("data", [])
+                # Jika data kosong (M12 belum isi karyawan), pakai mock
+                if not employees:
+                    return MOCK_EMPLOYEES_M12
+                return employees
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 401:
+                _m12_token_cache["token"] = None  # Reset cache, coba login ulang next request
+            # Fallback ke mock jika M12 error
+            return MOCK_EMPLOYEES_M12
+        except httpx.HTTPError:
+            return MOCK_EMPLOYEES_M12
+    return MOCK_EMPLOYEES_M12
+
+
+async def fetch_one_employee_from_m12(employee_id: int) -> dict:
+    """Ambil satu karyawan dari API M12 dengan auto-login. Fallback ke mock."""
+    if M12_API_BASE:
+        token = await get_m12_token()
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    f"{M12_API_BASE}/api/employees/{employee_id}",
+                    headers=headers
+                )
+                resp.raise_for_status()
+                return resp.json()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 401:
+                _m12_token_cache["token"] = None
+            pass
+        except httpx.HTTPError:
+            pass
+
+    emp = next((e for e in MOCK_EMPLOYEES_M12 if e["id"] == employee_id), None)
+    if not emp:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"message": f"Karyawan dengan ID {employee_id} tidak ditemukan."}
+        )
+    return emp
+
+
+# ==============================================================================
+# HELPER: AUTENTIKASI ROLE ADMIN HR
+# ==============================================================================
 
 def verify_admin_hr(
     x_user_role: Optional[str] = Header(None),
@@ -42,6 +173,11 @@ def verify_admin_hr(
         )
 
     return {"name": x_user_name or "Rani K. (Admin HR)", "role": "Admin HR"}
+
+
+# ==============================================================================
+# HELPER: AMBIL KOMPONEN GAJI DARI DB M14
+# ==============================================================================
 
 def fetch_salary_component_detail(conn, employee_id: int) -> Optional[dict]:
     cursor = conn.cursor()
@@ -85,14 +221,21 @@ def fetch_salary_component_detail(conn, employee_id: int) -> Optional[dict]:
         "deductions": deductions,
     }
 
+
+# ==============================================================================
+# ENDPOINT 1: LIST KARYAWAN (data dari M12 + komponen gaji dari DB M14)
+# ==============================================================================
+
 @router.get("", response_model=List[EmployeeItem])
-def list_employees():
+async def list_employees():
+    """
+    Ambil daftar karyawan dari API M12, lalu gabungkan dengan
+    komponen gaji yang tersimpan di database M14.
+    """
+    employees = await fetch_all_employees_from_m12()
+
     conn = get_db_connection()
     try:
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, name, nik, department, position, created_at FROM employees ORDER BY id ASC")
-        employees = cursor.fetchall()
-
         result = []
         for emp in employees:
             salary_comp = fetch_salary_component_detail(conn, emp["id"])
@@ -108,6 +251,11 @@ def list_employees():
     finally:
         conn.close()
 
+
+# ==============================================================================
+# ENDPOINT 2: GET KOMPONEN GAJI SATU KARYAWAN
+# ==============================================================================
+
 @router.get("/{employee_id}/salary-components")
 def get_salary_component(employee_id: int):
     conn = get_db_connection()
@@ -119,6 +267,11 @@ def get_salary_component(employee_id: int):
     finally:
         conn.close()
 
+
+# ==============================================================================
+# ENDPOINT 3: SIMPAN / UPDATE KOMPONEN GAJI (Admin HR only)
+# ==============================================================================
+
 @router.api_route("/{employee_id}/salary-components", methods=["POST", "PUT"])
 async def save_salary_component(
     employee_id: int,
@@ -128,19 +281,17 @@ async def save_salary_component(
     x_user_name: Optional[str] = Header("Rani K. (Admin HR)"),
     authorization: Optional[str] = Header(None)
 ):
-    # RBAC Auth Check
+    # RBAC: hanya Admin HR
     admin_user = verify_admin_hr(x_user_role, x_user_name, authorization)
+
+    # Verifikasi karyawan ada di M12 (bukan di DB M14)
+    await fetch_one_employee_from_m12(employee_id)
 
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        # 1. Cek karyawan ada
-        cursor.execute("SELECT id, name FROM employees WHERE id = ?", (employee_id,))
-        emp = cursor.fetchone()
-        if not emp:
-            raise HTTPException(status_code=404, detail={"message": "Karyawan tidak ditemukan."})
 
-        # 2. Validasi input (AC1 & AC4)
+        # Validasi input (AC1 & AC4)
         if payload.basicSalary <= 0:
             raise HTTPException(status_code=422, detail={"message": "Gaji pokok wajib diisi dan harus lebih besar dari Rp 0."})
 
@@ -181,7 +332,6 @@ async def save_salary_component(
 
         # Snapshot lama untuk history
         old_snapshot = fetch_salary_component_detail(conn, employee_id)
-
         now_iso = datetime.now().isoformat()
 
         cursor.execute("SELECT id FROM salary_components WHERE employee_id = ?", (employee_id,))
@@ -248,6 +398,11 @@ async def save_salary_component(
         raise HTTPException(status_code=500, detail={"message": f"Internal server error: {str(e)}"})
     finally:
         conn.close()
+
+
+# ==============================================================================
+# ENDPOINT 4: RIWAYAT PERUBAHAN KOMPONEN GAJI
+# ==============================================================================
 
 @router.get("/{employee_id}/salary-history", response_model=List[SalaryHistoryItem])
 def get_salary_history(employee_id: int):
